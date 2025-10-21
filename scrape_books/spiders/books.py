@@ -24,20 +24,25 @@ class BooksSpider(scrapy.Spider):
             yield response.follow(next_page, callback=self.parse)
 
     def parse_book(self, response):
-        price = float(
-            response.css("p.price_color::text").get().replace("£", "").strip()
-        )
+        price = 0.0
+        amount_in_stock = 0
+        raw_price = response.css("p.price_color::text").get()
+        if raw_price is not None:
+            price = float(raw_price.replace("£", "").strip())
         rating = response.css("p.star-rating::attr(class)").re_first(
             r"star-rating (\w+)"
         )
+        raw_amount = (
+            response.css("p.instock.availability::text").re_first(r"\d+")
+        )
+        if raw_amount is not None:
+            amount_in_stock = int(raw_amount)
 
         item = ScrapeBooksItem()
 
         item["title"] = response.css("div.product_main h1::text").get()
         item["price"] = price
-        item["amount_in_stock"] = (
-            response.css("p.instock.availability::text").re_first(r"\d+")
-        )
+        item["amount_in_stock"] = amount_in_stock
         item["rating"] = self.RATING_MAP.get(rating, 0)
         item["category"] = (
             response.css("ul.breadcrumb li:nth-child(3) a::text").get()
